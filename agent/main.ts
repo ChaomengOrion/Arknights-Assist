@@ -3,15 +3,16 @@ import 'frida-il2cpp-bridge';
 const SETTING = {
     'Version': '2.0.2',
     'IsBiliChannel': true, //是否是b服
-    'Proxy': false, //启用besthttp代理
-    'ProxyAddress': 'http://192.168.2.5:11240',
-    'ShowEnemyHp': true, //显示敌人血量
+    'LoginPass': false,
+    'Proxy': true, //启用besthttp代理
+    'ProxyAddress': 'http://192.168.2.3:11240',
+    'ShowEnemyHp': false, //显示敌人血量
     'PP': false, //添加额外后处理
-    'ShowBattleTimeInfo': true, //战斗中显示时间
+    'ShowBattleTimeInfo': false, //战斗中显示时间
     'SpeedLevel3': false, //战斗中三倍速
     'SpeedLevel16': false, //战斗中十六倍速
-    'EnableTAS': true, //启用TAS和敌人信息面板
-    'LogToAdb': true,
+    'EnableTAS': false, //启用TAS和敌人信息面板
+    'LogToAdb': false,
     'LogTag': 'ArknightsHook',
     'Il2CppHookDelay': 5000,
     'FindFontDelay': 10000,
@@ -71,40 +72,40 @@ namespace Logger {
         return t == undefined ? '' : `[1;35m${t} -[m `;
     }
 
-    export function log(s: string, t: string | undefined = undefined): void {
+    export function log(s: any, t: string | undefined = undefined): void {
         l(getTime() + getTC(t) + s);
     }
 
-    export function logDebug(s: string, t: string | undefined = undefined): void {
+    export function logDebug(s: any, t: string | undefined = undefined): void {
         l(getTime() + getTC(t) + `[33;47m${s}[m`);
     }
 
-    export function logNormal(s: string, t: string | undefined = undefined): void {
+    export function logNormal(s: any, t: string | undefined = undefined): void {
         l(getTime() + getTC(t) + `[1;34m${s}[m`);
     }
 
-    export function logWell(s: string, t: string | undefined = undefined): void {
+    export function logWell(s: any, t: string | undefined = undefined): void {
         l(getTime() + getTC(t) + `[1;32m${s}[m`);
     }
 
-    export function logWarning(s: string, t: string | undefined = undefined): void {
+    export function logWarning(s: any, t: string | undefined = undefined): void {
         l(getTime() + getTC(t) + `[1;33m${s}[m`);
     }
 
-    export function logError(s: string, t: string | undefined = undefined): void {
+    export function logError(s: any, t: string | undefined = undefined): void {
         l(getTime() + getTC(t) + `[1;31m${s}[m`);
     }
 }
 
 namespace Il2CppUtil {
     export function instantiate(klass: Il2Cpp.Class, ...parameters: Il2Cpp.Parameter.Type[]): Il2Cpp.Object {
-        let obj = klass.new();
+        let obj = klass.alloc();
         obj.method('.ctor').invoke(...parameters);
         return obj;
     }
 
     export function instantiateOverload(klass: Il2Cpp.Class, types: string[], ...parameters: Il2Cpp.Parameter.Type[]): Il2Cpp.Object {
-        let obj = klass.new();
+        let obj = klass.alloc();
         obj.method('.ctor').overload(...types).invoke(...parameters);
         return obj;
     }
@@ -394,6 +395,7 @@ namespace Il2CppHook {
         UnityEngineUI: Il2Cpp.Image,
         UnityEngineUIModule: Il2Cpp.Image,
         UnityEnginePhysics2DModule: Il2Cpp.Image,
+        NewtonsoftJson : Il2Cpp.Image,
         CoreLib: Il2Cpp.Image;
 
     let Vector3: Il2Cpp.Class, Vector2: Il2Cpp.Class, Color: Il2Cpp.Class,
@@ -442,6 +444,7 @@ namespace Il2CppHook {
         UnityEngineUI = Il2Cpp.Domain.assembly('UnityEngine.UI').image;
         UnityEngineUIModule = Il2Cpp.Domain.assembly('UnityEngine.UIModule').image;
         UnityEnginePhysics2DModule = Il2Cpp.Domain.assembly('UnityEngine.Physics2DModule').image;
+        NewtonsoftJson = Il2Cpp.Domain.assembly('Newtonsoft.Json').image;
         CoreLib = Il2Cpp.Image.corlib;
 
         Vector3 = UnityEngineCoreModule.class('UnityEngine.Vector3');
@@ -631,6 +634,8 @@ namespace Il2CppHook {
     }
 
     function LoginHook(): void {
+        if (!SETTING['LoginPass']) return;
+
         var BiliUid = '-1', HGUid = '-1';
 
         // SDKLoginCB
@@ -1301,7 +1306,37 @@ namespace Il2CppHook {
         })
     }
 
+    function CustomMapHook(): void {
+        let LevelUtils = AssemblyCSharp.class('Torappu.Battle.LevelUtils');
+        let LevelData = AssemblyCSharp.class('Torappu.LevelData');
+        let JsonConvert = NewtonsoftJson.class('Newtonsoft.Json.JsonConvert')
+        LevelUtils.method<Il2Cpp.Object>('LoadLevel').implementation = function (levelId: Il2Cpp.String) {
+            let levelData;
+            if (levelId.content?.includes('level_main_01-07')) {
+                var leveldataStr = FileUtil.readFile('/storage/emulated/0/level_main_01-07.json');
+                levelData = JsonConvert.method<Il2Cpp.Object>('DeserializeObject', 3).invoke(leveldataStr, LevelData.type.object, ptr(0));
+                levelData.field('levelId').value = levelId;
+            }
+            else {
+                levelData = this.method<Il2Cpp.Object>('LoadLevel').invoke(levelId);
+            }
+            return levelData;
+        }
+        let AssetBundle = UnityEngineCoreModule.class('UnityEngine.AssetBundle')
+        Interceptor.attach(Il2CppUtil.getFunctionByAddress(Il2Cpp.module, AssetBundle.method('LoadFromFile').overload('System.String').relativeVirtualAddress), {
+            onEnter: args => {
+                let s = 'jar:file:///data/app/~~Yqf7yWDr1agIa5lNdNGEzw==/com.hypergryph.arknights.bilibili-9QxE3D7SeoxJsLCYFDk1Uw==/base.apk!/assets/AB/Android/scenes/obt/main/level_main_01-07/level_main_01-07.ab';
+                let path = new Il2Cpp.String(args[1]).content as string;
+                if (path == s) {
+                    args[1] = Il2Cpp.String.from('/storage/emulated/0/level_custom-fixed.unity3d').handle;
+                }
+                //Logger.logDebug();
+            }
+        });
+    }
+
     export function main(): void {
+        //UnityUtil.saveAllObjectsInSence();
         Logger.logNormal('[Il2CppHook] Starting il2cpp layer hook...');
         Logger.log('[1;36m应用包名:[m [1;34m' + Il2Cpp.applicationIdentifier + '[m');
         Logger.log('[1;36m版本:[m [1;34m' + Il2Cpp.applicationVersion + '[m');
@@ -1315,6 +1350,7 @@ namespace Il2CppHook {
             '[Il2CppHook]');
         Logger.logNormal('[Il2CppHook] Starting UIBaseHook()...');
         UIBaseHook();
+        CustomMapHook();
     }
 }
 

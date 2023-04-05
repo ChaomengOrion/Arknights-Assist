@@ -1,10 +1,10 @@
 ### How to compile & load
 
 ```sh
-$ git clone git://github.com/oleavr/frida-agent-example.git
-$ cd frida-agent-example/
+$ git clone https://github.com/jxr2006/Arknights-Assist.git
+$ cd Arknights-Assist/
 $ npm install
-$ frida -U -f com.example.android --no-pause -l _agent.js
+$ frida -Uf com.hypergryph.arknights.bilibili -l _arknights.js
 ```
 
 ### Development workflow

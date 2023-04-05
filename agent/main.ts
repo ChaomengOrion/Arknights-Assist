@@ -5,7 +5,7 @@ const SETTING = {
     'IsBiliChannel': true, //是否是b服
     'LoginPass': false,
     'Proxy': true, //启用besthttp代理
-    'ProxyAddress': 'http://192.168.2.3:11240',
+    'ProxyAddress': 'http://192.168.2.4:11240',
     'ShowEnemyHp': false, //显示敌人血量
     'PP': false, //添加额外后处理
     'ShowBattleTimeInfo': false, //战斗中显示时间
@@ -215,7 +215,7 @@ namespace UnityUtil {
                     input += (j == 0 ? '' : ', ') + Il2CppUtil.getTypeString(components.get(j));
                 }
                 input += ")\n";
-                let childCount = obj.method('get_childCount').invoke();
+                let childCount = obj.method('get_childCount').invoke() as number;
                 for (let index = 0; index < childCount; index++) {
                     input = DoName(obj.method<Il2Cpp.Object>('GetChild').invoke(index), input, count + 1);
                 }
@@ -1312,8 +1312,10 @@ namespace Il2CppHook {
         let JsonConvert = NewtonsoftJson.class('Newtonsoft.Json.JsonConvert')
         LevelUtils.method<Il2Cpp.Object>('LoadLevel').implementation = function (levelId: Il2Cpp.String) {
             let levelData;
-            if (levelId.content?.includes('level_main_01-07')) {
-                var leveldataStr = FileUtil.readFile('/storage/emulated/0/level_main_01-07.json');
+            Logger.logDebug(levelId.content);
+            if (levelId.content?.includes('level_main_07-13')) {
+                //Il2Cpp.installExceptionListener("current");
+                var leveldataStr = FileUtil.readFile('/storage/emulated/0/level_main_07-13.json');
                 levelData = JsonConvert.method<Il2Cpp.Object>('DeserializeObject', 3).invoke(leveldataStr, LevelData.type.object, ptr(0));
                 levelData.field('levelId').value = levelId;
             }
@@ -1325,9 +1327,10 @@ namespace Il2CppHook {
         let AssetBundle = UnityEngineCoreModule.class('UnityEngine.AssetBundle')
         Interceptor.attach(Il2CppUtil.getFunctionByAddress(Il2Cpp.module, AssetBundle.method('LoadFromFile').overload('System.String').relativeVirtualAddress), {
             onEnter: args => {
-                let s = 'jar:file:///data/app/~~Yqf7yWDr1agIa5lNdNGEzw==/com.hypergryph.arknights.bilibili-9QxE3D7SeoxJsLCYFDk1Uw==/base.apk!/assets/AB/Android/scenes/obt/main/level_main_01-07/level_main_01-07.ab';
                 let path = new Il2Cpp.String(args[1]).content as string;
-                if (path == s) {
+                let s = 'scenes/obt/main/level_main_07-13/level_main_07-13.ab';
+                if (path.includes(s)) {
+                    Logger.logDebug('Loading scene')
                     args[1] = Il2Cpp.String.from('/storage/emulated/0/level_custom-fixed.unity3d').handle;
                 }
                 //Logger.logDebug();

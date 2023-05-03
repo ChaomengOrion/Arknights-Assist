@@ -13,12 +13,12 @@
     "run": "frida -Uf com.hypergryph.arknights.bilibili -l D:/Frida/Arknights/MainProject/_arknights.js"
   },
   "devDependencies": {
-    "@types/frida-gum": "^18.1.0",
-    "@types/node": "^18.0.6",
+    "@types/frida-gum": "^18.3.1",
+    "@types/node": "^18.16.3",
     "frida-compile": "^10.2.5",
-    "frida-il2cpp-bridge": "^0.7.13"
+    "frida-il2cpp-bridge": "^0.8.0"
   },
   "dependencies": {
-    "esbuild": "^0.17.11"
+    "esbuild": "^0.17.18"
   }
 }

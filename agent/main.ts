@@ -5,13 +5,13 @@ const SETTING = {
     'IsBiliChannel': true, //是否是b服
     'LoginPass': false,
     'Proxy': true, //启用besthttp代理
-    'ProxyAddress': 'http://192.168.2.4:11240',
+    'ProxyAddress': 'http://192.168.2.5:11240',
     'ShowEnemyHp': false, //显示敌人血量
     'PP': false, //添加额外后处理
     'ShowBattleTimeInfo': false, //战斗中显示时间
     'SpeedLevel3': false, //战斗中三倍速
     'SpeedLevel16': false, //战斗中十六倍速
-    'EnableTAS': false, //启用TAS和敌人信息面板
+    'EnableTAS': true, //启用TAS和敌人信息面板
     'LogToAdb': false,
     'LogTag': 'ArknightsHook',
     'Il2CppHookDelay': 5000,
@@ -133,7 +133,7 @@ namespace Il2CppUtil {
     }
 
     export function getEnumName(value: number, klass: Il2Cpp.Class): string {
-        const System_Enum = Il2Cpp.Image.corlib.class('System.Enum');
+        const System_Enum = Il2Cpp.corlib.class('System.Enum');
         const GetEnumObject = System_Enum.method<Il2Cpp.Object>('ToObject');
         return new Il2Cpp.String(GetEnumObject.overload('System.Type', 'System.Int32').invoke(klass.type.object, value).method<Il2Cpp.Object>('ToString').invoke()).content as string;
     }
@@ -142,35 +142,37 @@ namespace Il2CppUtil {
         return obj.method<Il2Cpp.Object>('GetType').invoke().method<Il2Cpp.String>('ToString').invoke().content as string;
     }
 
-    export function traceClassByName(cls: string, filterMethods: (method: Il2Cpp.Method<Il2Cpp.Method.ReturnType>) => boolean = method => method.name != 'Update', detailed = true, dll = Il2Cpp.Domain.assembly("Assembly-CSharp").image) {
+    export function traceClassByName(cls: string, filterMethods: (method: Il2Cpp.Method<Il2Cpp.Method.ReturnType>) => boolean = method => method.name != 'Update', detailed = true, dll = Il2Cpp.domain.assembly("Assembly-CSharp").image) {
         let CSharpClass = dll.class(cls);
         Il2Cpp.trace()
+            .parameters(detailed)
             .classes(CSharpClass)
             .filterMethods(filterMethods)
             .and()
-            .attach(detailed ? "detailed" : "full");
+            .attach();
         Logger.log('[1;36m[-] 跟踪类:[m [1;33m' + cls + '[m')
     }
 
     export function traceClass(cls: Il2Cpp.Class, filterMethods: (method: Il2Cpp.Method<Il2Cpp.Method.ReturnType>) => boolean = method => method.name != 'Update', detailed = true) {
         Il2Cpp.trace()
+            .parameters(detailed)
             .classes(cls)
             .filterMethods(filterMethods)
             .and()
-            .attach(detailed ? "detailed" : "full");
+            .attach();
         Logger.log('[1;36m[-] 跟踪类:[m [1;33m' + cls.name + '[m')
     }
 
-    export function traceFunc(cls: string, methods: string[], detailed = true, dll = Il2Cpp.Domain.assembly("Assembly-CSharp").image) {
+    export function traceFunc(cls: string, methods: string[], detailed = true, dll = Il2Cpp.domain.assembly("Assembly-CSharp").image) {
         let CSharpClass = dll.class(cls);
-        let tracer = Il2Cpp.trace();
+        let tracer = Il2Cpp.trace().parameters(detailed);
         methods.forEach(method => {
-            tracer.methods(CSharpClass.method(method)).and().attach(detailed ? "detailed" : "full");
+            tracer.methods(CSharpClass.method(method)).and().attach();
         });
     }
 
     export function dumpso(mod: Module) {
-        let path = Il2Cpp.applicationDataPath + '/' + mod.base.toString() + '_' + mod.size.toString() + '_' + mod.name;
+        let path = Il2Cpp.application.dataPath + '/' + mod.base.toString() + '_' + mod.size.toString() + '_' + mod.name;
         let file = new File(path, 'wb');
         Memory.protect(mod.base, mod.size, 'rwx');
         file.write(mod.base.readByteArray(mod.size) as ArrayBuffer);
@@ -182,15 +184,19 @@ namespace Il2CppUtil {
 
 namespace FileUtil {
     export function readFile(path: string): Il2Cpp.String {
-        return Il2Cpp.Image.corlib.class('System.IO.File').method<Il2Cpp.String>('ReadAllText').overload('System.String').invoke(Il2Cpp.String.from(path));
+        return Il2Cpp.corlib.class('System.IO.File').method<Il2Cpp.String>('ReadAllText').overload('System.String').invoke(Il2Cpp.string(path));
     }
 
     export function writeFile(path: string, text: string) {
-        return Il2Cpp.Image.corlib.class('System.IO.File').method<Il2Cpp.String>('WriteAllText').overload('System.String', 'System.String').invoke(Il2Cpp.String.from(path), Il2Cpp.String.from(text));
+        return Il2Cpp.corlib.class('System.IO.File').method<Il2Cpp.String>('WriteAllText').overload('System.String', 'System.String').invoke(Il2Cpp.string(path), Il2Cpp.string(text));
+    }
+
+    export function writeBytesToFile(path: string, bytes: any) {
+        return Il2Cpp.corlib.class('System.IO.File').method<Il2Cpp.String>('WriteAllBytes').invoke(Il2Cpp.string(path), bytes);
     }
 
     export function isFileExists(path: string): boolean {
-        return Il2Cpp.Image.corlib.class('System.IO.File').method<boolean>('Exists').invoke(Il2Cpp.String.from(path));
+        return Il2Cpp.corlib.class('System.IO.File').method<boolean>('Exists').invoke(Il2Cpp.string(path));
     }
 }
 
@@ -200,7 +206,7 @@ namespace UnityUtil {
     }
 
     export function saveAllObjectsInSence() {
-        let UnityEngineCoreModule = Il2Cpp.Domain.assembly('UnityEngine.CoreModule').image;
+        let UnityEngineCoreModule = Il2Cpp.domain.assembly('UnityEngine.CoreModule').image;
         function forScene(scene: Il2Cpp.ValueType) {
             let roots = scene.box().method<Il2Cpp.Array<Il2Cpp.Object>>('GetRootGameObjects').overload().invoke();
             let res = scene.box().method<Il2Cpp.String>('get_name').invoke().content + '\n';
@@ -224,14 +230,14 @@ namespace UnityUtil {
             for (let index = 0; index < roots.length; index++) {
                 res = DoName(roots.get(index).method<Il2Cpp.Object>('get_transform').invoke(), res);
             }
-            let path = Il2Cpp.applicationDataPath + '/' + Logger.formatDate(new Date().getTime(), 'hh-mm-ss') + '.txt';
+            let path = Il2Cpp.application.dataPath + '/' + Logger.formatDate(new Date().getTime(), 'hh-mm-ss') + '.txt';
             let file = new File(path, 'w');
             file.write(res);
             file.flush();
             file.close();
         }
         forScene(UnityEngineCoreModule.class('UnityEngine.SceneManagement.SceneManager').method<Il2Cpp.ValueType>('GetActiveScene').invoke());
-        //let dont = UnityEngineCoreModule.class('UnityEngine.GameObject').method<Il2Cpp.Object>('Find').invoke(Il2Cpp.String.from('Tracking')).method<Il2Cpp.ValueType>('get_scene').invoke();
+        //let dont = UnityEngineCoreModule.class('UnityEngine.GameObject').method<Il2Cpp.Object>('Find').invoke(Il2Cpp.string('Tracking')).method<Il2Cpp.ValueType>('get_scene').invoke();
         //forScene(dont);
         //return;
         /*Interceptor.replace(getFunctionByAddress(Il2Cpp.module, me.relativeVirtualAddress), new NativeCallback(function (obj: NativePointer, scale: number) {
@@ -269,7 +275,7 @@ namespace UnityUtil {
     }
 
     export function logRectTransform(obj: Il2Cpp.Object) {
-        let com = obj.method<Il2Cpp.Object>('GetComponent').invoke(Il2Cpp.Domain.assembly('UnityEngine.CoreModule').image.class('UnityEngine.RectTransform').type.object);
+        let com = obj.method<Il2Cpp.Object>('GetComponent').invoke(Il2Cpp.domain.assembly('UnityEngine.CoreModule').image.class('UnityEngine.RectTransform').type.object);
         let sizeDelta = com.method<Il2Cpp.ValueType>('get_sizeDelta').invoke();
         let anchorMax = com.method<Il2Cpp.ValueType>('get_anchorMax').invoke();
         let anchorMin = com.method<Il2Cpp.ValueType>('get_anchorMin').invoke();
@@ -437,15 +443,15 @@ namespace Il2CppHook {
     let hasPlay = false;
 
     function initHook(): void {
-        UnityEngineCoreModule = Il2Cpp.Domain.assembly('UnityEngine.CoreModule').image;
-        AssemblyCSharp = Il2Cpp.Domain.assembly('Assembly-CSharp').image;
-        AssemblyCSharpFirstpass = Il2Cpp.Domain.assembly('Assembly-CSharp-firstpass').image;
-        ThirdPartyAssembly = Il2Cpp.Domain.assembly('ThirdPartyAssembly').image;
-        UnityEngineUI = Il2Cpp.Domain.assembly('UnityEngine.UI').image;
-        UnityEngineUIModule = Il2Cpp.Domain.assembly('UnityEngine.UIModule').image;
-        UnityEnginePhysics2DModule = Il2Cpp.Domain.assembly('UnityEngine.Physics2DModule').image;
-        NewtonsoftJson = Il2Cpp.Domain.assembly('Newtonsoft.Json').image;
-        CoreLib = Il2Cpp.Image.corlib;
+        UnityEngineCoreModule = Il2Cpp.domain.assembly('UnityEngine.CoreModule').image;
+        AssemblyCSharp = Il2Cpp.domain.assembly('Assembly-CSharp').image;
+        AssemblyCSharpFirstpass = Il2Cpp.domain.assembly('Assembly-CSharp-firstpass').image;
+        ThirdPartyAssembly = Il2Cpp.domain.assembly('ThirdPartyAssembly').image;
+        UnityEngineUI = Il2Cpp.domain.assembly('UnityEngine.UI').image;
+        UnityEngineUIModule = Il2Cpp.domain.assembly('UnityEngine.UIModule').image;
+        UnityEnginePhysics2DModule = Il2Cpp.domain.assembly('UnityEngine.Physics2DModule').image;
+        NewtonsoftJson = Il2Cpp.domain.assembly('Newtonsoft.Json').image;
+        CoreLib = Il2Cpp.corlib;
 
         Vector3 = UnityEngineCoreModule.class('UnityEngine.Vector3');
         Vector2 = UnityEngineCoreModule.class('UnityEngine.Vector2');
@@ -469,8 +475,8 @@ namespace Il2CppHook {
         PlaySoundFx = AudioManager.method('PlaySoundFx');
 
         const FX_UI = AudioManager.nested('FXCategory').field('FX_UI').value;
-        OnUIClick = () => { PlaySoundFx.invoke(Il2Cpp.String.from('Audio/Sound_Beta_2/General/g_ui/g_ui_btn_n'), 1.0, 0.0, false, FX_UI, false, ptr(0)) };
-        OnUIEntrance = () => { PlaySoundFx.invoke(Il2Cpp.String.from('Audio/Sound_beta_2/General/g_ui/g_ui_pageentrance'), 1.0, 0.0, false, FX_UI, false, ptr(0)) };
+        OnUIClick = () => { PlaySoundFx.invoke(Il2Cpp.string('Audio/Sound_Beta_2/General/g_ui/g_ui_btn_n'), 1.0, 0.0, false, FX_UI, false, ptr(0)) };
+        OnUIEntrance = () => { PlaySoundFx.invoke(Il2Cpp.string('Audio/Sound_beta_2/General/g_ui/g_ui_pageentrance'), 1.0, 0.0, false, FX_UI, false, ptr(0)) };
 
         Normal = UnityEngine_KeyCode.field('C').value;
         SingleFrame = UnityEngine_KeyCode.field('Alpha1').value;
@@ -484,7 +490,7 @@ namespace Il2CppHook {
     }
 
     function initAccountData(): void {
-        accountDataPath = Il2Cpp.applicationDataPath + '/accountData.cfx.json';
+        accountDataPath = Il2Cpp.application.dataPath + '/accountData.cfx.json';
         if (!FileUtil.isFileExists(accountDataPath)) {
             FileUtil.writeFile(accountDataPath, '{"ShowHp":false,"Proxy":{"enable":false,"address":"http://x.x.x.x:port"},"Channel":{},"Game":{}}');
         }
@@ -502,7 +508,7 @@ namespace Il2CppHook {
     function NetworkHook(): void {
         if (SETTING['Proxy'] || accountData['Proxy']['enable']) {
             let url = SETTING['Proxy'] ? SETTING['ProxyAddress'] : accountData['Proxy']['address'];
-            let uri = Il2CppUtil.instantiateOverload(Il2Cpp.Domain.assembly('System').image.class('System.Uri'), ['System.String'], Il2Cpp.String.from(url));
+            let uri = Il2CppUtil.instantiateOverload(Il2Cpp.domain.assembly('System').image.class('System.Uri'), ['System.String'], Il2Cpp.string(url));
             let proxy = Il2CppUtil.instantiateOverload(ThirdPartyAssembly.class('BestHTTP.HTTPProxy'), ['System.Uri', 'BestHTTP.Authentication.Credentials', 'System.Boolean', 'System.Boolean', 'System.Boolean'], uri, ptr(0), true, true, false);
             ThirdPartyAssembly.class('BestHTTP.HTTPManager').method('set_Proxy').invoke(proxy);
             Logger.logWell(`Global proxy has been set to: [1;36m${url}[m`, '[Il2CppHook]>[NetworkHook]');
@@ -517,7 +523,7 @@ namespace Il2CppHook {
     function MiscHook(): void {
         let LoadApplicationSign = AssemblyCSharp.class('Torappu.NativeUtil').method<Il2Cpp.String>('LoadApplicationSign');
         LoadApplicationSign.implementation = function () {
-            return Il2Cpp.String.from('4502A02A00395DEC05A4134AD593224D');
+            return Il2Cpp.string('4502A02A00395DEC05A4134AD593224D');
         }
     }
 
@@ -557,7 +563,7 @@ namespace Il2CppHook {
         AssemblyCSharp.class('Torappu.Battle.UI.UIUnitHUD').method('Awake').implementation = function () {
             this.method('Awake').invoke();
             let hp = (this.field('_hpSlider').value as Il2Cpp.Object);
-            let obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.String.from('Text(Clone)'));
+            let obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.string('Text(Clone)'));
             obj.method<Il2Cpp.Object>('get_transform').invoke().method('SetParent').invoke(hp.method<Il2Cpp.Object>('get_transform').invoke());
             let text = obj.method<Il2Cpp.Object>('AddComponent').invoke(UnityEngineUI.class('UnityEngine.UI.Text').type.object);
             let rect = obj.method<Il2Cpp.Object>('GetComponent').invoke(UnityEngineCoreModule.class('UnityEngine.RectTransform').type.object);
@@ -584,7 +590,7 @@ namespace Il2CppHook {
     function UIBaseHook(): void {
         setTimeout(() => {
             let fonts = UnityEngineCoreModule.class('UnityEngine.Resources').method<Il2Cpp.Array<Il2Cpp.Object>>('FindObjectsOfTypeAll')
-                .invoke(Il2Cpp.Domain.assembly('UnityEngine.TextRenderingModule').image.class('UnityEngine.Font').type.object);
+                .invoke(Il2Cpp.domain.assembly('UnityEngine.TextRenderingModule').image.class('UnityEngine.Font').type.object);
             for (let index = 0; index < fonts.length; index++) {
                 let f = fonts.get(index);
                 if (f.toString() == SETTING['GlobalFont'] + ' (UnityEngine.Font)') {
@@ -605,7 +611,7 @@ namespace Il2CppHook {
     }
 
     function PPHook(): void {
-        const Postprocessing = Il2Cpp.Domain.assembly('Unity.Postprocessing.Runtime').image
+        const Postprocessing = Il2Cpp.domain.assembly('Unity.Postprocessing.Runtime').image
         let obj = UnityEngineCoreModule.class('UnityEngine.GameObject').method<Il2Cpp.Object>('FindObjectOfType')
             .inflate(Postprocessing.class('UnityEngine.Rendering.PostProcessing.PostProcessVolume')).invoke();
         if (!obj.isNull()) {
@@ -703,7 +709,7 @@ namespace Il2CppHook {
             if (code == 400 && accountData['Channel'][BiliUid]['gameUid'] != '-1' && accountData['Channel'][BiliUid]['gameUid'] in accountData['Game']) {
                 HGUid = accountData['Channel'][BiliUid]['gameUid'];
                 response.field('responseCode').value = 200;
-                response.field('text').value = Il2Cpp.String.from(`{"result":0,"error":"","uid":"${HGUid}","channelUid":${BiliUid},"token":"token","isGuest":0,"extension":"{\\"nickName\\":\\"doctor\\"}"}`);
+                response.field('text').value = Il2Cpp.string(`{"result":0,"error":"","uid":"${HGUid}","channelUid":${BiliUid},"token":"token","isGuest":0,"extension":"{\\"nickName\\":\\"doctor\\"}"}`);
                 response.field('isError').value = false;
                 response.field('error').value = ptr(0);
             }
@@ -724,8 +730,8 @@ namespace Il2CppHook {
                 this.method('_UpdateSDKUID').invoke(uid);
                 var resBody = Il2CppUtil.instantiate(LoginResponse);
                 resBody.field('result').value = 0;
-                resBody.field('uid').value = Il2Cpp.String.from(HGUid);
-                resBody.field('secret').value = Il2Cpp.String.from(accountData['Game'][HGUid]['secret']);
+                resBody.field('uid').value = Il2Cpp.string(HGUid);
+                resBody.field('secret').value = Il2Cpp.string(accountData['Game'][HGUid]['secret']);
                 resBody.field('serviceLicenseVersion').value = 0;
                 var NetworkerInstance = Networker.method<Il2Cpp.Object>('get_instance').invoke();
                 var seqnum: number = accountData['Game'][HGUid]['seqnum'];
@@ -802,7 +808,7 @@ namespace Il2CppHook {
         }
 
         export function CreateEnemyHud(UIController: Il2Cpp.Object) {
-            EnemyHud_Obj = Il2CppUtil.instantiate(GameObject, Il2Cpp.String.from('EnemyInfoPanel(Clone)'));
+            EnemyHud_Obj = Il2CppUtil.instantiate(GameObject, Il2Cpp.string('EnemyInfoPanel(Clone)'));
             EnemyHud_Obj.method<Il2Cpp.Object>('get_transform').invoke().method('SetParent').invoke(UIController.method<Il2Cpp.Object>('get_groupStatic').invoke());
             let EnemyHud_Panel = EnemyHud_Obj.method<Il2Cpp.Object>('AddComponent').invoke(UnityEngineUI.class('UnityEngine.UI.Image').type.object);
             EnemyHud_Group = EnemyHud_Obj.method<Il2Cpp.Object>('AddComponent').invoke(UnityEngineUIModule.class('UnityEngine.CanvasGroup').type.object);
@@ -818,7 +824,7 @@ namespace Il2CppHook {
             EnemyHud_Group.method('set_blocksRaycasts').invoke(false);
             EnemyHud_Group.method('set_alpha').invoke(0);
 
-            let EnemyHud_Image_obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.String.from('EnemyImage'));
+            let EnemyHud_Image_obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.string('EnemyImage'));
             EnemyHud_Image_obj.method<Il2Cpp.Object>('get_transform').invoke().method('SetParent').invoke(EnemyHud_Obj.method<Il2Cpp.Object>('get_transform').invoke());
             let EnemyHud_Image = EnemyHud_Image_obj.method<Il2Cpp.Object>('AddComponent').invoke(UnityEngineUI.class('UnityEngine.UI.Image').type.object);
             let EnemyHud_Image_rect = EnemyHud_Image_obj.method<Il2Cpp.Object>('GetComponent').invoke(UnityEngineCoreModule.class('UnityEngine.RectTransform').type.object);
@@ -829,7 +835,7 @@ namespace Il2CppHook {
                 ['System.Single', 'System.Single', 'System.Single', 'System.Single'],
                 0, 0, 0, 0.5).unbox());
 
-            let EnemyHud_Name_obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.String.from('EnemyName'));
+            let EnemyHud_Name_obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.string('EnemyName'));
             EnemyHud_Name_obj.method<Il2Cpp.Object>('get_transform').invoke().method('SetParent').invoke(EnemyHud_Obj.method<Il2Cpp.Object>('get_transform').invoke());
             EnemyHud_Name = EnemyHud_Name_obj.method<Il2Cpp.Object>('AddComponent').invoke(UnityEngineUI.class('UnityEngine.UI.Text').type.object);
             let EnemyHud_Name_rect = EnemyHud_Name_obj.method<Il2Cpp.Object>('GetComponent').invoke(UnityEngineCoreModule.class('UnityEngine.RectTransform').type.object);
@@ -838,12 +844,12 @@ namespace Il2CppHook {
             EnemyHud_Name_rect.method('set_sizeDelta').invoke(Il2CppUtil.instantiate(Vector2, 260, 45).unbox());
             EnemyHud_Name.method('set_font').invoke(globalFont);
             EnemyHud_Name.method('set_fontSize').invoke(36);
-            EnemyHud_Name.method('set_text').invoke(Il2Cpp.String.from('敌人名字'));
+            EnemyHud_Name.method('set_text').invoke(Il2Cpp.string('敌人名字'));
             EnemyHud_Name.field('m_Color').value = Il2CppUtil.instantiateOverload(Color,
                 ['System.Single', 'System.Single', 'System.Single', 'System.Single'],
                 0.8, 0.2, 0, 1).unbox();
 
-            let EnemyHud_ID_obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.String.from('EnemyID'));
+            let EnemyHud_ID_obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.string('EnemyID'));
             EnemyHud_ID_obj.method<Il2Cpp.Object>('get_transform').invoke().method('SetParent').invoke(EnemyHud_Obj.method<Il2Cpp.Object>('get_transform').invoke());
             EnemyHud_ID = EnemyHud_ID_obj.method<Il2Cpp.Object>('AddComponent').invoke(UnityEngineUI.class('UnityEngine.UI.Text').type.object);
             let EnemyHud_ID_rect = EnemyHud_ID_obj.method<Il2Cpp.Object>('GetComponent').invoke(UnityEngineCoreModule.class('UnityEngine.RectTransform').type.object);
@@ -852,12 +858,12 @@ namespace Il2CppHook {
             EnemyHud_ID_rect.method('set_sizeDelta').invoke(Il2CppUtil.instantiate(Vector2, 260, 20).unbox());
             EnemyHud_ID.method('set_font').invoke(globalFont);
             EnemyHud_ID.method('set_fontSize').invoke(16);
-            EnemyHud_ID.method('set_text').invoke(Il2Cpp.String.from('enemy_1xxx_xxxxx_2'));
+            EnemyHud_ID.method('set_text').invoke(Il2Cpp.string('enemy_1xxx_xxxxx_2'));
             EnemyHud_ID.field('m_Color').value = Il2CppUtil.instantiateOverload(Color,
                 ['System.Single', 'System.Single', 'System.Single', 'System.Single'],
                 0.2, 0.2, 0.2, 1).unbox();
 
-            let EnemyHud_Des_obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.String.from('EnemyDes'));
+            let EnemyHud_Des_obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.string('EnemyDes'));
             EnemyHud_Des_obj.method<Il2Cpp.Object>('get_transform').invoke().method('SetParent').invoke(EnemyHud_Obj.method<Il2Cpp.Object>('get_transform').invoke());
             EnemyHud_Des = EnemyHud_Des_obj.method<Il2Cpp.Object>('AddComponent').invoke(UnityEngineUI.class('UnityEngine.UI.Text').type.object);
             let EnemyHud_Des_rect = EnemyHud_Des_obj.method<Il2Cpp.Object>('GetComponent').invoke(UnityEngineCoreModule.class('UnityEngine.RectTransform').type.object);
@@ -866,12 +872,12 @@ namespace Il2CppHook {
             EnemyHud_Des_rect.method('set_sizeDelta').invoke(Il2CppUtil.instantiate(Vector2, 310, 130).unbox());
             EnemyHud_Des.method('set_font').invoke(globalFont);
             EnemyHud_Des.method('set_fontSize').invoke(16);
-            EnemyHud_Des.method('set_text').invoke(Il2Cpp.String.from('敌人描述'));
+            EnemyHud_Des.method('set_text').invoke(Il2Cpp.string('敌人描述'));
             EnemyHud_Des.field('m_Color').value = Il2CppUtil.instantiateOverload(Color,
                 ['System.Single', 'System.Single', 'System.Single', 'System.Single'],
                 1, 1, 1, 1).unbox();
 
-            let EnemyHud_Blackboard_obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.String.from('EnemyBlackboard'));
+            let EnemyHud_Blackboard_obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.string('EnemyBlackboard'));
             EnemyHud_Blackboard_obj.method<Il2Cpp.Object>('get_transform').invoke().method('SetParent').invoke(EnemyHud_Obj.method<Il2Cpp.Object>('get_transform').invoke());
             EnemyHud_Blackboard = EnemyHud_Blackboard_obj.method<Il2Cpp.Object>('AddComponent').invoke(UnityEngineUI.class('UnityEngine.UI.Text').type.object);
             let EnemyHud_Blackboard_rect = EnemyHud_Blackboard_obj.method<Il2Cpp.Object>('GetComponent').invoke(UnityEngineCoreModule.class('UnityEngine.RectTransform').type.object);
@@ -880,7 +886,7 @@ namespace Il2CppHook {
             EnemyHud_Blackboard_rect.method('set_sizeDelta').invoke(Il2CppUtil.instantiate(Vector2, 230, 220).unbox());
             EnemyHud_Blackboard.method('set_font').invoke(globalFont);
             EnemyHud_Blackboard.method('set_fontSize').invoke(18);
-            EnemyHud_Blackboard.method('set_text').invoke(Il2Cpp.String.from(
+            EnemyHud_Blackboard.method('set_text').invoke(Il2Cpp.string(
                 `攻击 <color=#D63A00>6756</color>
 防御 <color=#D63A00>233</color>
 法抗 <color=#D63A00>222</color>
@@ -893,7 +899,7 @@ namespace Il2CppHook {
                 ['System.Single', 'System.Single', 'System.Single', 'System.Single'],
                 1, 1, 1, 1).unbox();
 
-            let EnemyHud_Blackboard2_obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.String.from('EnemyBlackboard2'));
+            let EnemyHud_Blackboard2_obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.string('EnemyBlackboard2'));
             EnemyHud_Blackboard2_obj.method<Il2Cpp.Object>('get_transform').invoke().method('SetParent').invoke(EnemyHud_Obj.method<Il2Cpp.Object>('get_transform').invoke());
             EnemyHud_Blackboard2 = EnemyHud_Blackboard2_obj.method<Il2Cpp.Object>('AddComponent').invoke(UnityEngineUI.class('UnityEngine.UI.Text').type.object);
             let EnemyHud_Blackboard2_rect = EnemyHud_Blackboard2_obj.method<Il2Cpp.Object>('GetComponent').invoke(UnityEngineCoreModule.class('UnityEngine.RectTransform').type.object);
@@ -902,7 +908,7 @@ namespace Il2CppHook {
             EnemyHud_Blackboard2_rect.method('set_sizeDelta').invoke(Il2CppUtil.instantiate(Vector2, 120, 220).unbox());
             EnemyHud_Blackboard2.method('set_font').invoke(globalFont);
             EnemyHud_Blackboard2.method('set_fontSize').invoke(18);
-            EnemyHud_Blackboard2.method('set_text').invoke(Il2Cpp.String.from(
+            EnemyHud_Blackboard2.method('set_text').invoke(Il2Cpp.string(
                 `移速 <color=#66CCFF>3.0</color>
 攻速 <color=#66CCFF>222</color>
 重量 <color=#66CCFF>7</color>
@@ -917,7 +923,7 @@ namespace Il2CppHook {
 
         export function UpdateEnemyHudData() {
             if (EnemyHud_Enemy.isNull() || !EnemyHud_Enemy.method<boolean>('get_alive').invoke()) {
-                EnemyHud_Blackboard.method('set_text').invoke(Il2Cpp.String.from('敌人已死亡'));
+                EnemyHud_Blackboard.method('set_text').invoke(Il2Cpp.string('敌人已死亡'));
                 EnemyHud_Blackboard2.method('set_text').invoke(ptr(0));
             } else {
                 let ability = EnemyHud_Enemy.method<Il2Cpp.Object>('get_attackAbilityCasted').invoke();
@@ -942,7 +948,7 @@ namespace Il2CppHook {
                 }
                 let pos = UnityUtil.vector2ToTuple(EnemyHud_Enemy.method<Il2Cpp.ValueType>('get_footMapPosition').invoke());
                 let blocker = EnemyHud_Enemy.method<Il2Cpp.Object>('get_blocker').invoke();
-                EnemyHud_Blackboard.method('set_text').invoke(Il2Cpp.String.from(
+                EnemyHud_Blackboard.method('set_text').invoke(Il2Cpp.string(
                     `攻击 <color=#D63A00>${EnemyHud_Enemy.method<Il2Cpp.ValueType>('get_atk').invoke().box().method<number>('AsFloat').invoke().toFixed(2)}</color>
 防御 <color=#D63A00>${EnemyHud_Enemy.method<Il2Cpp.ValueType>('get_def').invoke().box().method<number>('AsFloat').invoke().toFixed(2)}</color>
 法抗 <color=#D63A00>${EnemyHud_Enemy.method<Il2Cpp.ValueType>('get_magicResistance').invoke().box().method<number>('AsFloat').invoke().toFixed(2)}</color>
@@ -952,7 +958,7 @@ namespace Il2CppHook {
 坐标 <color=#66CCFF>(${pos[0].toFixed(2)}, ${pos[1].toFixed(2)})</color>
 当前技能 <color=#FF4000>${abname}</color>
 技能目标 <color=#FF4000>${targetNames}</color>`));
-                EnemyHud_Blackboard2.method('set_text').invoke(Il2Cpp.String.from(
+                EnemyHud_Blackboard2.method('set_text').invoke(Il2Cpp.string(
                     `移速 <color=#66CCFF>${EnemyHud_Enemy.method<number>('get_moveSpeed').invoke().toFixed(3)}</color>
 攻速 <color=#66CCFF>${(EnemyHud_Enemy.method<Il2Cpp.ValueType>('get_baseAttackTime').invoke().box().method<number>('AsFloat').invoke() * 100 / EnemyHud_Enemy.method<Il2Cpp.ValueType>('get_attackSpeed').invoke().box().method<number>('AsFloat').invoke()).toFixed(3)}</color>
 重量 <color=#66CCFF>${EnemyHud_Enemy.method<number>('get_massLevel').invoke()}</color>
@@ -1139,7 +1145,7 @@ namespace Il2CppHook {
                 if (SETTING['PP']) PPHook();
                 EnemyHUD.CreateEnemyHud(UIControllerInstance);
                 if (SETTING['ShowBattleTimeInfo']) {
-                    let shower = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.String.from('TimeShower (Clone)'));
+                    let shower = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.string('TimeShower (Clone)'));
                     let groupStatic = UIControllerInstance.method<Il2Cpp.Object>('get_groupStatic').invoke()
                     shower.method<Il2Cpp.Object>('get_transform').invoke().method('SetParent').invoke(groupStatic);
                     let text = shower.method<Il2Cpp.Object>('AddComponent').invoke(UnityEngineUI.class('UnityEngine.UI.Text').type.object);
@@ -1147,12 +1153,12 @@ namespace Il2CppHook {
                     rect.method('set_anchoredPosition3D').invoke(Il2CppUtil.instantiate(Vector3, -550, 480, 0).unbox());
                     rect.method('set_localScale').invoke(Vector3.method<Il2Cpp.ValueType>('get_one').invoke());
                     rect.method('set_sizeDelta').invoke(Il2CppUtil.instantiate(Vector2, 400, 50).unbox());
-                    //let font = UnityEngineCoreModule.class('UnityEngine.Resources').method<Il2Cpp.Object>('GetBuiltinResource').invoke(Il2Cpp.Domain.assembly('UnityEngine.TextRenderingModule').image.class('UnityEngine.Font').type.object, Il2Cpp.String.from('Arial.ttf'));
+                    //let font = UnityEngineCoreModule.class('UnityEngine.Resources').method<Il2Cpp.Object>('GetBuiltinResource').invoke(Il2Cpp.domain.assembly('UnityEngine.TextRenderingModule').image.class('UnityEngine.Font').type.object, Il2Cpp.string('Arial.ttf'));
                     text.method('set_font').invoke(globalFont);
                     text.method('set_fontSize').invoke(30);
                     set_time_text = text.method('set_text');
-                    set_time_text.invoke(Il2Cpp.String.from('战斗时间轴: 0.000s'));
-                    let shower2 = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.String.from('FrameShower (Clone)'));
+                    set_time_text.invoke(Il2Cpp.string('战斗时间轴: 0.000s'));
+                    let shower2 = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.string('FrameShower (Clone)'));
                     shower2.method<Il2Cpp.Object>('get_transform').invoke().method('SetParent').invoke(groupStatic);
                     let text2 = shower2.method<Il2Cpp.Object>('AddComponent').invoke(UnityEngineUI.class('UnityEngine.UI.Text').type.object);
                     let rect2 = shower2.method<Il2Cpp.Object>('GetComponent').invoke(UnityEngineCoreModule.class('UnityEngine.RectTransform').type.object);
@@ -1162,7 +1168,7 @@ namespace Il2CppHook {
                     text2.method('set_font').invoke(globalFont);
                     text2.method('set_fontSize').invoke(30);
                     set_frameCount_text = text2.method('set_text');
-                    set_frameCount_text.invoke(Il2Cpp.String.from('Tick计数: 0 tick'));
+                    set_frameCount_text.invoke(Il2Cpp.string('Tick计数: 0 tick'));
                 }
             }
         });
@@ -1251,8 +1257,8 @@ namespace Il2CppHook {
                             break;
                     }
                     if (SETTING['ShowBattleTimeInfo']) {
-                        set_time_text?.invoke(Il2Cpp.String.from('战斗时间轴: ' + get_fixedPlayTime.invoke().box().method<number>('AsFloat').invoke().toFixed(3).toString() + 's'));
-                        set_frameCount_text?.invoke(Il2Cpp.String.from('Tick计数: ' + get_fixedFrameCnt.invoke().toString() + ' tick'));
+                        set_time_text?.invoke(Il2Cpp.string('战斗时间轴: ' + get_fixedPlayTime.invoke().box().method<number>('AsFloat').invoke().toFixed(3).toString() + 's'));
+                        set_frameCount_text?.invoke(Il2Cpp.string('Tick计数: ' + get_fixedFrameCnt.invoke().toString() + ' tick'));
                     }
                     //send('Time', get_fixedPlayTime.invoke().handle.readByteArray(8));
                 }
@@ -1315,7 +1321,7 @@ namespace Il2CppHook {
             Logger.logDebug(levelId.content);
             if (levelId.content?.includes('level_main_07-13')) {
                 //Il2Cpp.installExceptionListener("current");
-                var leveldataStr = FileUtil.readFile('/storage/emulated/0/level_main_07-13.json');
+                var leveldataStr = FileUtil.readFile('/storage/emulated/0/level_custom.json');
                 levelData = JsonConvert.method<Il2Cpp.Object>('DeserializeObject', 3).invoke(leveldataStr, LevelData.type.object, ptr(0));
                 levelData.field('levelId').value = levelId;
             }
@@ -1331,19 +1337,55 @@ namespace Il2CppHook {
                 let s = 'scenes/obt/main/level_main_07-13/level_main_07-13.ab';
                 if (path.includes(s)) {
                     Logger.logDebug('Loading scene')
-                    args[1] = Il2Cpp.String.from('/storage/emulated/0/level_custom-fixed.unity3d').handle;
+                    //Il2Cpp.installExceptionListener("all");
+                    args[1] = Il2Cpp.string('/storage/emulated/0/level_custom-fixed.unity3d').handle;
                 }
                 //Logger.logDebug();
             }
         });
     }
 
+    function dumpFlatBufferHook() {
+        function SerializeObject(obj: Il2Cpp.Object) {
+            let JsonConvert = NewtonsoftJson.class('Newtonsoft.Json.JsonConvert')
+            let JsonSerializerSettings = NewtonsoftJson.class('Newtonsoft.Json.JsonSerializerSettings')
+            let setting = Il2CppUtil.instantiate(JsonSerializerSettings);
+            let converters = setting.method<Il2Cpp.Object>('get_Converters').invoke(); // System.Collections.Generic.List`1[Newtonsoft.Json.JsonConverter]
+            [
+                'Torappu.BlackboardConverter',
+                'Torappu.ListDictConverter',
+                'Torappu.ObscuredFloatConverter',
+                'Torappu.ObscuredIntConverter',
+                //'Torappu.DateTimeJsonConverter',
+                //'Torappu.BoolToIntJsonConverter',
+            ].forEach(cls => converters.method('Add').invoke(Il2CppUtil.instantiate(AssemblyCSharp.class(cls))));
+            return JsonConvert.method<Il2Cpp.String>('SerializeObject').overload('System.Object', 'Newtonsoft.Json.JsonSerializerSettings').invoke(obj, setting);
+        }
+
+        function SerializeObjectv2(obj: Il2Cpp.Object) {
+            let JsonNetConverter = AssemblyCSharp.class('Torappu.DB.JsonNetConverter')
+            let memoryStream = Il2CppUtil.instantiateOverload(Il2Cpp.corlib.class('System.IO.MemoryStream'), []);
+            Il2CppUtil.instantiate(JsonNetConverter, NewtonsoftJson.class('Newtonsoft.Json.Formatting').field('Indented').value)
+                .method('Serialize').invoke(obj, memoryStream);
+            return memoryStream.method('ToArray').invoke();
+        }
+
+        AssemblyCSharp.class('Torappu.DB.FlatBufferSignedConverter').method('_DeserializeInternal').implementation = function (stream: Il2Cpp.Object, type: Il2Cpp.Object) {
+            Logger.logNormal(`dumping ${type} to /sdcard/${type}.json...`);
+            let ret = this.method<Il2Cpp.Object>('_DeserializeInternal').invoke(stream, type);
+            FileUtil.writeBytesToFile(`/sdcard/${type}.json`, SerializeObjectv2(ret));
+            Logger.logWell(`done.`);
+            return ret;
+        }
+    }
+
     export function main(): void {
         //UnityUtil.saveAllObjectsInSence();
         Logger.logNormal('[Il2CppHook] Starting il2cpp layer hook...');
-        Logger.log('[1;36m应用包名:[m [1;34m' + Il2Cpp.applicationIdentifier + '[m');
-        Logger.log('[1;36m版本:[m [1;34m' + Il2Cpp.applicationVersion + '[m');
-        Logger.log('[1;36m路径:[m [1;34m' + Il2Cpp.applicationDataPath + '[m');
+        let application = Il2Cpp.application;
+        Logger.log('[1;36m应用包名:[m [1;34m' + application.identifier + '[m');
+        Logger.log('[1;36m版本:[m [1;34m' + application.version + '[m');
+        Logger.log('[1;36m路径:[m [1;34m' + application.dataPath + '[m');
         Logger.log('[1;36mUnity版本:[m [1;34m' + Il2Cpp.unityVersion + '[m');
         Logger.log('[1;36mPid:[m [1;34m' + Process.id.toString() + '[m');
         Logger.log('[1;36mAPK签名:[m [1;34m' + JavaUtil.getAppSignature() + '[m');
@@ -1353,6 +1395,8 @@ namespace Il2CppHook {
             '[Il2CppHook]');
         Logger.logNormal('[Il2CppHook] Starting UIBaseHook()...');
         UIBaseHook();
+
+        //dumpFlatBufferHook();
         CustomMapHook();
     }
 }

@@ -3,12 +3,12 @@ import 'frida-il2cpp-bridge';
 const SETTING = {
     'Version': '2.0.2',
     'IsBiliChannel': true, //是否是b服
-    'LoginPass': false,
+    'LoginPass': true,
     'Proxy': true, //启用besthttp代理
-    'ProxyAddress': 'http://192.168.2.5:11240',
-    'ShowEnemyHp': false, //显示敌人血量
+    'ProxyAddress': 'http://192.168.2.4:11240',
+    'ShowEnemyHp': true, //显示敌人血量
     'PP': false, //添加额外后处理
-    'ShowBattleTimeInfo': false, //战斗中显示时间
+    'ShowBattleTimeInfo': true, //战斗中显示时间
     'SpeedLevel3': false, //战斗中三倍速
     'SpeedLevel16': false, //战斗中十六倍速
     'EnableTAS': true, //启用TAS和敌人信息面板
@@ -328,6 +328,72 @@ namespace JavaUtil {
             .call(md5, (x: { toString: (arg0: number) => string; }) => ('00' + x.toString(16)).slice(-2))
             .join('');
     }
+
+    export function screenCapView(view: Java.Wrapper) {
+        // view.setDrawingCacheEnabled(true); // 设置缓存，可用于实时截图
+        let Bitmap = Java.use('android.graphics.Bitmap');
+        let CompressFormat = Java.use('android.graphics.Bitmap$CompressFormat');
+        let FileOutputStream = Java.use('java.io.FileOutputStream');
+        let File = Java.use('java.io.File');
+        let MeasureSpec = Java.use('android.view.View$MeasureSpec')
+        view.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED.value), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED.value));
+        view.layout(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight());
+        view.setDrawingCacheEnabled(true);
+        view.buildDrawingCache();
+        let bitmap = Bitmap.createBitmap(view.getDrawingCache());
+        let file = File.$new(Il2Cpp.application.dataPath + '/screen.png');
+        let os = FileOutputStream.$new(file);
+        bitmap.compress(CompressFormat.PNG.value, 100, os);
+        os.flush();
+        os.close();
+        return 0;
+    }
+
+    export function screenCapViewv1(view: Java.Wrapper) {
+        // view.setDrawingCacheEnabled(true); // 设置缓存，可用于实时截图
+        let Bitmap = Java.use('android.graphics.Bitmap');
+        let Canvas = Java.use('android.graphics.Canvas');
+        let Config = Java.use('android.graphics.Bitmap$Config');
+        let bitmap = Bitmap.createBitmap(view.getWidth(), view.getHeight(), Config.ARGB_8888.value);
+        view.draw(Canvas.$new(bitmap));
+        // view.setDrawingCacheEnabled(false); // 清空缓存，可用于实时截图
+        // String bitmapString = getBitmapString(bitmap); // 位图转 Base64 String
+        let drawByte = getBitmapByte(bitmap); // 位图转为 Byted
+        return drawByte;
+    }
+
+    function getBitmapByte(bitmap : Java.Wrapper) {
+        let CompressFormat = Java.use('android.graphics.Bitmap$CompressFormat');
+        let ByteArrayOutputStream = Java.use('java.io.ByteArrayOutputStream');
+        let out = ByteArrayOutputStream.$new();
+        // 参数1转换类型，参数2压缩质量，参数3字节流资源
+        bitmap.compress(CompressFormat.PNG.value, 100, out);
+        out.flush();
+        out.close();
+        return out.toByteArray();
+    }
+
+    /*function getBitmapString(bitmap) {
+        let result = null;
+        ByteArrayOutputStream out = null;
+        if (bitmap != null) {
+            out = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+
+            out.flush();
+            out.close();
+
+            byte[] bitmapBytes = out.toByteArray();
+            result = Base64.encodeToString(bitmapBytes, Base64.DEFAULT); // Base64.DEFAULT会自动换行，传给前端会报错，所以要用Base64.NO_WRAP
+        }
+        return result;
+    }*/
+
+    export function screenCap() {
+        let player: Java.Wrapper = Java.use('com.unity3d.player.UnityPlayer').currentActivity.value;
+        let view = player.getWindow().getDecorView();
+        return screenCapView(view);
+    }
 }
 
 function tryCallingHook(funcs: Function[], rawNames: string[], from: string) {
@@ -359,7 +425,7 @@ namespace JavaHook {
 
     function ACESDKHook(): void {
         const MTPProxyApplication = Java.use('com.hg.sdk.MTPProxyApplication');
-        MTPProxyApplication.onProxyCreate.implementation = () => { };
+        MTPProxyApplication.onProxyCreate.implementation = () => { Logger.logNormal('onProxyCreate blocked') };
         const MTPDetection = Java.use('com.hg.sdk.MTPDetection');
         MTPDetection.onUserLogin.implementation = (_accountType: number, _worldId: number, _openId: string, _roleId: string) => { };
     }
@@ -383,12 +449,26 @@ namespace JavaHook {
         }
     }
 
+    function accessKeyHook(): void {
+        let ContentValues = Java.use('android.content.ContentValues')
+        ContentValues.put.overload('java.lang.String', 'java.lang.String').implementation = function (key: string, value: string){
+            if (key == 'access_key'){
+                Logger.log(value);
+                this.put(key, 'dc90d0c7f9468c17a814636099480369_sh');
+            }
+            else{
+                this.put(key, value);
+            }
+        }
+    }
+
     export function main(): void {
         Logger.logNormal('[JavaHook] Starting java layer hook...');
         tryCallingHook(
             SETTING['IsBiliChannel'] ? [ACESDKHook, biliGameSDKHook, biliTrackHook, biliPaymentHook] : [ACESDKHook],
             SETTING['IsBiliChannel'] ? ['ACESDKHook', 'biliGameSDKHook', 'biliTrackHook', 'biliPaymentHook'] : ['ACESDKHook'],
             '[JavaHook]');
+        //accessKeyHook();
     }
 }
 
@@ -799,12 +879,12 @@ namespace Il2CppHook {
         export function ShowEnemyRoute(enemy: Il2Cpp.Object) {
             let cursor = enemy.method<Il2Cpp.Object>('get_cursor').invoke();
             let route = cursor.method<Il2Cpp.Object>('get_route').invoke();
-            let motionMode = (route.field('m_data').value as Il2Cpp.Object).field('motionMode').value;
-            let factory = BattleControllerInstance?.method<Il2Cpp.Object>('get_factory').invoke();
-            let scheduler = BattleControllerInstance?.method<Il2Cpp.Object>('get_scheduler').invoke();
+            let motionMode = route.field<Il2Cpp.Object>('m_data').value.field('motionMode').value;
+            let factory = BattleControllerInstance!.method<Il2Cpp.Object>('get_factory').invoke();
+            let scheduler = BattleControllerInstance!.method<Il2Cpp.Object>('get_scheduler').invoke();
             let previewCursor = factory?.method<Il2Cpp.Object>('CreatePreviewCursor').invoke(motionMode);
             let snapshot = scheduler?.method<Il2Cpp.ValueType>('TakeSnapshot').invoke();
-            previewCursor?.method('Spawn').invoke(route, snapshot as Il2Cpp.ValueType, ptr(0));
+            previewCursor?.method('Spawn').invoke(route, snapshot, ptr(0));
         }
 
         export function CreateEnemyHud(UIController: Il2Cpp.Object) {
@@ -1321,7 +1401,7 @@ namespace Il2CppHook {
             Logger.logDebug(levelId.content);
             if (levelId.content?.includes('level_main_07-13')) {
                 //Il2Cpp.installExceptionListener("current");
-                var leveldataStr = FileUtil.readFile('/storage/emulated/0/level_custom.json');
+                var leveldataStr = FileUtil.readFile('/storage/emulated/0/$MuMu共享文件夹/level_custom.json');
                 levelData = JsonConvert.method<Il2Cpp.Object>('DeserializeObject', 3).invoke(leveldataStr, LevelData.type.object, ptr(0));
                 levelData.field('levelId').value = levelId;
             }
@@ -1338,7 +1418,7 @@ namespace Il2CppHook {
                 if (path.includes(s)) {
                     Logger.logDebug('Loading scene')
                     //Il2Cpp.installExceptionListener("all");
-                    args[1] = Il2Cpp.string('/storage/emulated/0/level_custom-fixed.unity3d').handle;
+                    args[1] = Il2Cpp.string('/storage/emulated/0/$MuMu共享文件夹/level_custom-fixed.unity3d').handle;
                 }
                 //Logger.logDebug();
             }
@@ -1395,9 +1475,6 @@ namespace Il2CppHook {
             '[Il2CppHook]');
         Logger.logNormal('[Il2CppHook] Starting UIBaseHook()...');
         UIBaseHook();
-
-        //dumpFlatBufferHook();
-        CustomMapHook();
     }
 }
 

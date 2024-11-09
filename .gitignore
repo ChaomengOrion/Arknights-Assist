@@ -1,3 +1,4 @@
-_arknights.cfx.js
-_arknights.js
 /node_modules
+*.js
+*.py
+.vscode

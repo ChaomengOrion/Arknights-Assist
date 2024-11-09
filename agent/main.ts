@@ -1,22 +1,23 @@
 import 'frida-il2cpp-bridge';
 
 const SETTING = {
-    'Version': '2.0.2',
+    'Version': '2.0.6',
     'IsBiliChannel': true, //是否是b服
-    'LoginPass': true,
-    'Proxy': true, //启用besthttp代理
-    'ProxyAddress': 'http://192.168.2.4:11240',
+    'LoginPass': true, //尝试绕过b服防沉迷登陆（2024-11月已失效，只能用来保存账号信息）
+    'Proxy': false, //启用http代理
+    'ProxyAddress': 'http://192.168.2.1:11241', //代理地址
     'ShowEnemyHp': true, //显示敌人血量
     'PP': false, //添加额外后处理
-    'ShowBattleTimeInfo': true, //战斗中显示时间
+    'ShowBattleTimeInfo': false, //战斗中显示时间
     'SpeedLevel3': false, //战斗中三倍速
     'SpeedLevel16': false, //战斗中十六倍速
     'EnableTAS': true, //启用TAS和敌人信息面板
-    'LogToAdb': false,
+    'LogToAdb': false, //打印输出到adb
     'LogTag': 'ArknightsHook',
     'Il2CppHookDelay': 5000,
     'FindFontDelay': 10000,
-    'GlobalFont': 'Novecentowide-Normal',
+    'GlobalFont': 'Novecentowide-Normal', //全局UI字体
+    'FPS120': false, //解锁120帧
     'KeyBinding': { //按键绑定
         'TAS': {
             'Normal': 'C',
@@ -36,7 +37,7 @@ const SETTING = {
     }
 };
 
-const title = 'G1szNm0gICAgX19fICAgIF9fICAgICAgICAgICAgICBfICAgICAgIF9fICAgIF9fICAgICAgG1ttChtbMzZtICAgLyAgIHwgIC8gL19fX19fX19fX19fICAoXylfX18gXy8gL18gIC8gL19fX19fXxtbbQobWzE7MzZtICAvIC98IHwgLyAvL18vIF9fXy8gX18gXC8gLyBfXyBgLyBfXyBcLyBfXy8gX19fLxtbbQobWzE7MzZtIC8gX19fIHwvICw8IC8gLyAgLyAvIC8gLyAvIC9fLyAvIC8gLyAvIC9fKF9fICApIBtbbQobWzE7MzRtL18vICB8Xy9fL3xfL18vICAvXy8gL18vXy9cX18sIC9fLyAvXy9cX18vX19fXy8gIBtbbQobWzM0bSAgICAgICAgICAgICAgICAgICAgICAgICAvX19fXy8gICAgICAgICAgICAgICAgICAbW20KG1sxOzMwbS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0bW20KG1sxOzMybUFya25pZ2h0cyBBc3Npc3QgU2NyaXB0IFYyLjAuMhtbbSAbWzQ7MzJtKEZvciBBcmtuaWdodHMgdjEuOS44MSB8IFRlc3RlZCBvbiBGcmlkYSB2MTYuMC4xMSkbW20KG1sxOzMzbUF1dGhvcmVkIGJ5IENoYW9tZW5nQ0ZYG1tt'
+const title = 'G1szNm0gICAgX19fICAgIF9fICAgICAgICAgICAgICBfICAgICAgIF9fICAgIF9fICAgICAgG1ttChtbMzZtICAgLyAgIHwgIC8gL19fX19fX19fX19fICAoXylfX18gXy8gL18gIC8gL19fX19fXxtbbQobWzE7MzZtICAvIC98IHwgLyAvL18vIF9fXy8gX18gXC8gLyBfXyBgLyBfXyBcLyBfXy8gX19fLxtbbQobWzE7MzZtIC8gX19fIHwvICw8IC8gLyAgLyAvIC8gLyAvIC9fLyAvIC8gLyAvIC9fKF9fICApIBtbbQobWzE7MzRtL18vICB8Xy9fL3xfL18vICAvXy8gL18vXy9cX18sIC9fLyAvXy9cX18vX19fXy8gIBtbbQobWzM0bSAgICAgICAgICAgICAgICAgICAgICAgICAvX19fXy8gICAgICAgICAgICAgICAgICAbW20KG1sxOzMwbS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0bW20KG1sxOzMybUFya25pZ2h0cyBBc3Npc3QgU2NyaXB0IFYyLjAuNhtbbSAbWzQ7MzJtKEZvciBBcmtuaWdodHMgdjIuNC4wMSB8IFRlc3RlZCBvbiBGcmlkYSB2MTYuNS42IHwgTGFzdCBtb2RpZmllZCBvbiAyMDI0LTExLTA5KRtbbQobWzE7MzNtQXV0aG9yZWQgYnkgQ2hhb21lbmdPcmlvbhtbbQ=='
 
 namespace Logger {
     export function formatDate(time: string | number | Date = new Date().getTime(), format: string = 'YY-MM-DD hh:mm:ss'): string {
@@ -188,11 +189,13 @@ namespace FileUtil {
     }
 
     export function writeFile(path: string, text: string) {
-        return Il2Cpp.corlib.class('System.IO.File').method<Il2Cpp.String>('WriteAllText').overload('System.String', 'System.String').invoke(Il2Cpp.string(path), Il2Cpp.string(text));
+        return Il2Cpp.domain.assembly('Torappu.Common').image.class('Torappu.FileUtil').method<void>('WriteToFile').invoke(Il2Cpp.string(text), Il2Cpp.string(path), false);
+        //return Il2Cpp.corlib.class('System.IO.File').method<Il2Cpp.String>('WriteAllText').overload('System.String', 'System.String').invoke(Il2Cpp.string(path), Il2Cpp.string(text));
     }
 
     export function writeBytesToFile(path: string, bytes: any) {
-        return Il2Cpp.corlib.class('System.IO.File').method<Il2Cpp.String>('WriteAllBytes').invoke(Il2Cpp.string(path), bytes);
+        return Il2Cpp.domain.assembly('Torappu.Common').image.class('Torappu.FileUtil').method<void>('WriteBytesToFile').invoke(bytes, Il2Cpp.string(path), false);
+        //return Il2Cpp.corlib.class('System.IO.File').method<Il2Cpp.String>('WriteAllBytes').invoke(Il2Cpp.string(path), bytes);
     }
 
     export function isFileExists(path: string): boolean {
@@ -362,7 +365,7 @@ namespace JavaUtil {
         return drawByte;
     }
 
-    function getBitmapByte(bitmap : Java.Wrapper) {
+    function getBitmapByte(bitmap: Java.Wrapper) {
         let CompressFormat = Java.use('android.graphics.Bitmap$CompressFormat');
         let ByteArrayOutputStream = Java.use('java.io.ByteArrayOutputStream');
         let out = ByteArrayOutputStream.$new();
@@ -399,6 +402,7 @@ namespace JavaUtil {
 function tryCallingHook(funcs: Function[], rawNames: string[], from: string) {
     for (let index = 0; index < funcs.length; index++) {
         try {
+            Logger.logWarning(`${rawNames[index]}() is calling.`, from);
             funcs[index]();
             Logger.logWell(`${rawNames[index]}() is done.`, from);
         } catch (error: any) {
@@ -451,23 +455,34 @@ namespace JavaHook {
 
     function accessKeyHook(): void {
         let ContentValues = Java.use('android.content.ContentValues')
-        ContentValues.put.overload('java.lang.String', 'java.lang.String').implementation = function (key: string, value: string){
-            if (key == 'access_key'){
+        ContentValues.put.overload('java.lang.String', 'java.lang.String').implementation = function (key: string, value: string) {
+            if (key == 'access_key') {
                 Logger.log(value);
-                this.put(key, 'dc90d0c7f9468c17a814636099480369_sh');
+                this.put(key, 'xxx_sh');
             }
-            else{
+            else {
                 this.put(key, value);
             }
+        }
+    }
+
+    function HguseragreementHook(): void {
+        let Util = Java.use('com.hypergryph.platform.hguseragreement.commom.utils.Util');
+        Util.getResult.implementation = function (state: number, errorCode: number) {
+            return '{"code":0}'
         }
     }
 
     export function main(): void {
         Logger.logNormal('[JavaHook] Starting java layer hook...');
         tryCallingHook(
-            SETTING['IsBiliChannel'] ? [ACESDKHook, biliGameSDKHook, biliTrackHook, biliPaymentHook] : [ACESDKHook],
-            SETTING['IsBiliChannel'] ? ['ACESDKHook', 'biliGameSDKHook', 'biliTrackHook', 'biliPaymentHook'] : ['ACESDKHook'],
+            SETTING['IsBiliChannel'] ? [ACESDKHook, biliGameSDKHook, biliTrackHook, biliPaymentHook, HguseragreementHook] : [ACESDKHook, HguseragreementHook],
+            SETTING['IsBiliChannel'] ? ['ACESDKHook', 'biliGameSDKHook', 'biliTrackHook', 'biliPaymentHook', 'HguseragreementHook'] : ['ACESDKHook', 'HguseragreementHook'],
             '[JavaHook]');
+        /*tryCallingHook(
+            [biliTrackHook],
+            ['biliTrackHook'],
+            '[JavaHook]');*/
         //accessKeyHook();
     }
 }
@@ -481,7 +496,8 @@ namespace Il2CppHook {
         UnityEngineUI: Il2Cpp.Image,
         UnityEngineUIModule: Il2Cpp.Image,
         UnityEnginePhysics2DModule: Il2Cpp.Image,
-        NewtonsoftJson : Il2Cpp.Image,
+        NewtonsoftJson: Il2Cpp.Image,
+        TorappuCommon: Il2Cpp.Image,
         CoreLib: Il2Cpp.Image;
 
     let Vector3: Il2Cpp.Class, Vector2: Il2Cpp.Class, Color: Il2Cpp.Class,
@@ -500,7 +516,9 @@ namespace Il2CppHook {
         FormatUtil: Il2Cpp.Class,
         CharacterUtil: Il2Cpp.Class,
         AudioManager: Il2Cpp.Class,
-        PlaySoundFx: Il2Cpp.Method;
+        PlaySoundFx: Il2Cpp.Method,
+        UIPopupWindow: Il2Cpp.Class,
+        Alert: Il2Cpp.Method;
 
     let BattleControllerInstance: Il2Cpp.Object | null = null;
     let UIControllerInstance: Il2Cpp.Object | null = null;
@@ -531,6 +549,7 @@ namespace Il2CppHook {
         UnityEngineUIModule = Il2Cpp.domain.assembly('UnityEngine.UIModule').image;
         UnityEnginePhysics2DModule = Il2Cpp.domain.assembly('UnityEngine.Physics2DModule').image;
         NewtonsoftJson = Il2Cpp.domain.assembly('Newtonsoft.Json').image;
+        TorappuCommon = Il2Cpp.domain.assembly('Torappu.Common').image;
         CoreLib = Il2Cpp.corlib;
 
         Vector3 = UnityEngineCoreModule.class('UnityEngine.Vector3');
@@ -553,20 +572,23 @@ namespace Il2CppHook {
         CharacterUtil = AssemblyCSharp.class('Torappu.CharacterUtil');
         AudioManager = AssemblyCSharp.class('Torappu.AudioManager')
         PlaySoundFx = AudioManager.method('PlaySoundFx');
+        UIPopupWindow = AssemblyCSharp.class('Torappu.UI.UIPopupWindow');
+        Alert = UIPopupWindow.method('Alert');
 
         const FX_UI = AudioManager.nested('FXCategory').field('FX_UI').value;
-        OnUIClick = () => { PlaySoundFx.invoke(Il2Cpp.string('Audio/Sound_Beta_2/General/g_ui/g_ui_btn_n'), 1.0, 0.0, false, FX_UI, false, ptr(0)) };
-        OnUIEntrance = () => { PlaySoundFx.invoke(Il2Cpp.string('Audio/Sound_beta_2/General/g_ui/g_ui_pageentrance'), 1.0, 0.0, false, FX_UI, false, ptr(0)) };
+        const DEFAULT = AudioManager.nested('AudioPlayOption').field('DEFAULT').value;
+        OnUIClick = () => { PlaySoundFx.invoke(Il2Cpp.string('Audio/Sound_Beta_2/General/g_ui/g_ui_btn_n'), DEFAULT, FX_UI, false) };
+        OnUIEntrance = () => { PlaySoundFx.invoke(Il2Cpp.string('Audio/Sound_beta_2/General/g_ui/g_ui_pageentrance'), DEFAULT, FX_UI, false) };
 
-        Normal = UnityEngine_KeyCode.field('C').value;
-        SingleFrame = UnityEngine_KeyCode.field('Alpha1').value;
-        DoubleFrame = UnityEngine_KeyCode.field('Alpha2').value;
-        PlayingOnDown = UnityEngine_KeyCode.field('F').value;
-        PlayingOnUp = UnityEngine_KeyCode.field('R').value;
-        CONTROL = UnityEngine_KeyCode.field('X').value;
-        VISABLE = UnityEngine_KeyCode.field('Z').value;
-        THREE = UnityEngine_KeyCode.field('Alpha3').value;
-        FOUR = UnityEngine_KeyCode.field('Alpha4').value;
+        Normal = UnityEngine_KeyCode.field(SETTING.KeyBinding.TAS.Normal).value;
+        SingleFrame = UnityEngine_KeyCode.field(SETTING.KeyBinding.TAS.SingleFrame).value;
+        DoubleFrame = UnityEngine_KeyCode.field(SETTING.KeyBinding.TAS.DoubleFrame).value;
+        PlayingOnDown = UnityEngine_KeyCode.field(SETTING.KeyBinding.TAS.PlayingOnDown).value;
+        PlayingOnUp = UnityEngine_KeyCode.field(SETTING.KeyBinding.TAS.PlayingOnUp).value;
+        CONTROL = UnityEngine_KeyCode.field(SETTING.KeyBinding.TAS.CONTROL).value;
+        VISABLE = UnityEngine_KeyCode.field(SETTING.KeyBinding.EnemyHud.ShowInfo).value;
+        THREE = UnityEngine_KeyCode.field(SETTING.KeyBinding.BattleSpeedLevel.THREE).value;
+        FOUR = UnityEngine_KeyCode.field(SETTING.KeyBinding.BattleSpeedLevel.FOUR).value;
     }
 
     function initAccountData(): void {
@@ -592,7 +614,7 @@ namespace Il2CppHook {
             let proxy = Il2CppUtil.instantiateOverload(ThirdPartyAssembly.class('BestHTTP.HTTPProxy'), ['System.Uri', 'BestHTTP.Authentication.Credentials', 'System.Boolean', 'System.Boolean', 'System.Boolean'], uri, ptr(0), true, true, false);
             ThirdPartyAssembly.class('BestHTTP.HTTPManager').method('set_Proxy').invoke(proxy);
             Logger.logWell(`Global proxy has been set to: [1;36m${url}[m`, '[Il2CppHook]>[NetworkHook]');
-            AssemblyCSharp.class('Torappu.Network.Certificate.CertificateHandlerFactory').nested('BouncyCastleCertVerifyer').method<boolean>('IsValid')
+            TorappuCommon.class('Torappu.Network.Certificate.CertificateHandlerFactory').nested('BouncyCastleCertVerifyer').method<boolean>('IsValid')
                 .implementation = function (targetUri: Il2Cpp.Object, certs: any) {
                     let host = targetUri.method<Il2Cpp.String>("get_Host").invoke().content
                     return host != "ak.hypergryph.com";
@@ -602,8 +624,13 @@ namespace Il2CppHook {
 
     function MiscHook(): void {
         let LoadApplicationSign = AssemblyCSharp.class('Torappu.NativeUtil').method<Il2Cpp.String>('LoadApplicationSign');
-        LoadApplicationSign.implementation = function () {
+        if (SETTING['IsBiliChannel']) LoadApplicationSign.implementation = function () {
             return Il2Cpp.string('4502A02A00395DEC05A4134AD593224D');
+        }
+        const UnityEngine_Application = UnityEngineCoreModule.class('UnityEngine.Application');
+        const set_targetFrameRate = UnityEngine_Application.method('set_targetFrameRate');
+        if (SETTING['FPS120']) set_targetFrameRate.implementation = function (fps: number) {
+            set_targetFrameRate.invoke(120);
         }
     }
 
@@ -638,31 +665,32 @@ namespace Il2CppHook {
     }
 
     function EnemyHpSliderHook(): void {
-        let mode = AssemblyCSharp.class('Torappu.UI.UITextSlider').nested('TextMode').field('A_SLASH_B');
+        const A_SLASH_B = AssemblyCSharp.class('Torappu.UI.UITextSlider').nested('TextMode').field('A_SLASH_B');
 
-        AssemblyCSharp.class('Torappu.Battle.UI.UIUnitHUD').method('Awake').implementation = function () {
+        /*AssemblyCSharp.class('Torappu.Battle.UI.UIUnitHUD').method('Awake').implementation = function () {
             this.method('Awake').invoke();
-            let hp = (this.field('_hpSlider').value as Il2Cpp.Object);
-            let obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.string('Text(Clone)'));
-            obj.method<Il2Cpp.Object>('get_transform').invoke().method('SetParent').invoke(hp.method<Il2Cpp.Object>('get_transform').invoke());
-            let text = obj.method<Il2Cpp.Object>('AddComponent').invoke(UnityEngineUI.class('UnityEngine.UI.Text').type.object);
-            let rect = obj.method<Il2Cpp.Object>('GetComponent').invoke(UnityEngineCoreModule.class('UnityEngine.RectTransform').type.object);
-            rect.method('set_anchoredPosition3D').invoke(Il2CppUtil.instantiate(Vector3, 155, -15, 0).unbox());
-            rect.method('set_localScale').invoke(Vector3.method<Il2Cpp.ValueType>('get_one').invoke());
-            rect.method('set_sizeDelta').invoke(Il2CppUtil.instantiate(Vector2, 400, 20).unbox());
-            text.method('set_font').invoke(globalFont);
-            text.method('set_fontSize').invoke(16);
-            text.field('m_Color').value = Il2CppUtil.instantiateOverload(Color,
-                ['System.Single', 'System.Single', 'System.Single', 'System.Single'],
-                1, 0, 0, 1).unbox();
-            hp.field('_text').value = text;
-            hp.field('_textMode').value = mode.value;
-        }
+        }*/
 
-        AssemblyCSharp.class('Torappu.Battle.UI.UIUnitHUD').method('Attach').implementation = function (owner: Il2Cpp.Object) {
-            let text = ((this.field('_hpSlider').value as Il2Cpp.Object).field('_text').value as Il2Cpp.Object).method<Il2Cpp.Object>('get_gameObject').invoke();
-            text.method('SetActive').invoke(owner.class.type != AssemblyCSharp.class('Torappu.Battle.Character').type
-                && owner.class.type != AssemblyCSharp.class('Torappu.Battle.Token').type);
+        AssemblyCSharp.class('Torappu.Battle.UI.UIUnitHUD').method('Attach').implementation = function (owner: Il2Cpp.Object) { // 2024-11-09重写
+            //let text = ((this.field('_hpSlider').value as Il2Cpp.Object).field('_text').value as Il2Cpp.Object).method<Il2Cpp.Object>('get_gameObject').invoke();
+            let needAttach = owner.class.type != AssemblyCSharp.class('Torappu.Battle.Character').type && owner.class.type != AssemblyCSharp.class('Torappu.Battle.Token').type;
+            let hp = this.field<Il2Cpp.Object>('_hpSlider').value;
+            if (needAttach && !hp.isNull() && hp.field<Il2Cpp.Object>('_text').value.isNull()) {
+                let obj: Il2Cpp.Object = Il2CppUtil.instantiate(UnityEngineCoreModule.class('UnityEngine.GameObject'), Il2Cpp.string('HpText_C(Clone)'));
+                obj.method<Il2Cpp.Object>('get_transform').invoke().method('SetParent').invoke(hp.method<Il2Cpp.Object>('get_transform').invoke());
+                let text = obj.method<Il2Cpp.Object>('AddComponent').invoke(UnityEngineUI.class('UnityEngine.UI.Text').type.object);
+                let rect = obj.method<Il2Cpp.Object>('GetComponent').invoke(UnityEngineCoreModule.class('UnityEngine.RectTransform').type.object);
+                rect.method('set_anchoredPosition3D').invoke(Il2CppUtil.instantiate(Vector3, 155, -15, 0).unbox());
+                rect.method('set_localScale').invoke(Vector3.method<Il2Cpp.ValueType>('get_one').invoke());
+                rect.method('set_sizeDelta').invoke(Il2CppUtil.instantiate(Vector2, 400, 20).unbox());
+                text.method('set_font').invoke(globalFont);
+                text.method('set_fontSize').invoke(16);
+                text.field('m_Color').value = Il2CppUtil.instantiateOverload(Color,
+                    ['System.Single', 'System.Single', 'System.Single', 'System.Single'],
+                    1, 0, 0, 1).unbox();
+                hp.field('_text').value = text;
+                hp.field('_textMode').value = A_SLASH_B.value;
+            }
             this.method('Attach').invoke(owner);
         }
     }
@@ -720,18 +748,18 @@ namespace Il2CppHook {
     }
 
     function LoginHook(): void {
-        if (!SETTING['LoginPass']) return;
+        if (!SETTING['IsBiliChannel'] || !SETTING['LoginPass']) return;
 
-        var BiliUid = '-1', HGUid = '-1';
+        var BiliUid = '-1', HGUid = '-1', isRealLogin = false;
 
         // SDKLoginCB
-        let SDKLoginCB: Il2Cpp.Method | null = null;
+        let SDKLoginImpl: Il2Cpp.Method | null = null;
         const LoginViewController = AssemblyCSharp.class('Torappu.UI.Login.LoginViewController');
         let LoginViewControllerNestedClasses = LoginViewController.nestedClasses;
         for (let i = 0; i < LoginViewControllerNestedClasses.length; i++) {
             const klass = LoginViewControllerNestedClasses[i];
-            if (klass.name.includes('<DoSDKLogin>c__AnonStorey')) {
-                SDKLoginCB = klass.method('<>m__0');
+            if (klass.name.includes('<_SDKLoginImpl>c__AnonStoreyA')) {
+                SDKLoginImpl = klass.method('<>m__0');
                 break;
             }
         }
@@ -750,8 +778,11 @@ namespace Il2CppHook {
         let UpdateSDKIdAndLogin = LoginViewController.method('_UpdateSDKIdAndLogin');
         let LoginServiceSuccess = LoginViewController.method('_LoginServiceSuccess');
 
-        const Networker = AssemblyCSharp.class('Torappu.Network.Networker');
+        const Networker = TorappuCommon.class('Torappu.Network.Networker');
         let PostWithProperNetworkUtil = Networker.method('_PostWithProperNetworkUtil');
+
+        const LoginNativeLicense = AssemblyCSharp.class('Torappu.UI.Login.LoginNativeLicense');
+        let UseNativeLicense = LoginNativeLicense.method('UseNativeLicense');
 
         // hook
         Interceptor.attach(Il2CppUtil.getFunctionByAddress(Il2Cpp.module, PostWithProperNetworkUtil.relativeVirtualAddress), {
@@ -759,27 +790,33 @@ namespace Il2CppHook {
                 let url = new Il2Cpp.String(args[1]).content as string;
                 Logger.logNormal(`Post Url: [1;36m${url}[m`, '[NetworkHook]');
                 if (HGUid != "-1" && !url.includes('as.hypergryph.com') && !url.includes('/account/login')) {
-                    accountData['Game'][HGUid]['seqnum'] = Networker.method<Il2Cpp.Object>('get_instance').invoke().field<number>('m_seqNum').value + 1;
+                    accountData['Game'][HGUid]['seqnum'] = Networker.method<Il2Cpp.Object>('get_instance').invoke().field<number>('m_latestSucceedSeqNum').value + 1;
                     saveAccountData();
                 }
             }
         });
 
-        if (SDKLoginCB) SDKLoginCB.implementation = function (response: Il2Cpp.String) {
-            var extension = JSON.parse(response.content as string);
-            BiliUid = extension['uid'];
-            readAccountData();
-            if (BiliUid in accountData['Channel']) {
-                accountData['Channel'][BiliUid]['accessToken'] = extension['access_token'];
+        UseNativeLicense.implementation = function () {
+            return false;
+        }
+
+        if (SDKLoginImpl) SDKLoginImpl.implementation = function (response: Il2Cpp.String) {
+            if (response != undefined) {
+                var extension = JSON.parse(response.content as string);
+                BiliUid = extension['uid'];
+                readAccountData();
+                if (BiliUid in accountData['Channel']) {
+                    accountData['Channel'][BiliUid]['accessToken'] = extension['access_token'];
+                }
+                else {
+                    accountData['Channel'][BiliUid] = {
+                        'accessToken': extension['access_token'],
+                        'gameUid': '-1'
+                    };
+                }
+                saveAccountData();
             }
-            else {
-                accountData['Channel'][BiliUid] = {
-                    'accessToken': extension['access_token'],
-                    'gameUid': '-1'
-                };
-            }
-            saveAccountData();
-            this.method(SDKLoginCB?.name as string).invoke(response);
+            this.method(SDKLoginImpl?.name as string).invoke(response);
         }
 
         if (SDKAuthCB) SDKAuthCB.implementation = function (response: Il2Cpp.Object) {
@@ -804,40 +841,62 @@ namespace Il2CppHook {
         }
 
         const LoginResponse = AssemblyCSharp.class('Torappu.LoginResponse');
+        const SDKInstLoader = AssemblyCSharp.class('Torappu.SDK.SDKInstLoader');
         UpdateSDKIdAndLogin.implementation = function (uid: Il2Cpp.String, token: Il2Cpp.String) {
             readAccountData();
             if (token.content == 'token') {
                 this.method('_UpdateSDKUID').invoke(uid);
+                SDKInstLoader.method<Il2Cpp.Object>('get_instance').invoke().method('NotifyU8LoginSucceed').invoke();
                 var resBody = Il2CppUtil.instantiate(LoginResponse);
                 resBody.field('result').value = 0;
                 resBody.field('uid').value = Il2Cpp.string(HGUid);
-                resBody.field('secret').value = Il2Cpp.string(accountData['Game'][HGUid]['secret']);
+                var secret = accountData['Game'][HGUid]['secret'];
+                var majorVersion;
+                if ('majorVersion' in accountData['Game'][HGUid]) {
+                    majorVersion = accountData['Game'][HGUid]['majorVersion'];
+                }
+                else {
+                    majorVersion = '326';
+                }
+                resBody.field('secret').value = Il2Cpp.string(secret);
+                resBody.field('majorVersion').value = Il2Cpp.string(majorVersion); // add at v2.2.81
                 resBody.field('serviceLicenseVersion').value = 0;
+                // resBody.field('playerDataDelta').value = ptr(0); // del at v2.2.81
                 var NetworkerInstance = Networker.method<Il2Cpp.Object>('get_instance').invoke();
                 var seqnum: number = accountData['Game'][HGUid]['seqnum'];
                 NetworkerInstance.field('m_seqNum').value = seqnum;
                 NetworkerInstance.field('m_latestSucceedSeqNum').value = seqnum;
                 NetworkerInstance.field('m_lastSeqNumFailed').value = 0;
+                Alert.invoke(Il2Cpp.string(`使用保存的secret: <color=#FFA532>${secret}</color>`), ptr(0));
                 this.method('_LoginServiceSuccess').invoke(resBody);
+                isRealLogin = false;
             }
             else {
                 this.method('_UpdateSDKIdAndLogin').invoke(uid, token);
+                isRealLogin = true;
             }
         }
 
         LoginServiceSuccess.implementation = function (resBody: Il2Cpp.Object) {
-            var uid = resBody.field<Il2Cpp.String>('uid').value.content as string;
-            readAccountData();
-            if (uid in accountData['Game']) {
-                accountData['Game'][resBody.field<Il2Cpp.String>('uid').value.content as string]['secret'] = resBody.field<Il2Cpp.String>('secret').value.content;
+            if (isRealLogin) {
+                var uid = resBody.field<Il2Cpp.String>('uid').value.content as string;
+                readAccountData();
+                var secret = resBody.field<Il2Cpp.String>('secret').value.content;
+                var majorVersion = resBody.field<Il2Cpp.String>('majorVersion').value.content;
+                if (uid in accountData['Game']) {
+                    accountData['Game'][uid]['secret'] = secret;
+                    accountData['Game'][uid]['majorVersion'] = majorVersion;
+                }
+                else {
+                    accountData['Game'][uid] = {
+                        'secret': secret,
+                        'seqnum': 0,
+                        'majorVersion': majorVersion
+                    };
+                }
+                saveAccountData();
+                Alert.invoke(Il2Cpp.string(`secret已刷新: <color=#37FFC3>${secret}</color>\nmajorVersion: ${majorVersion}`), ptr(0));
             }
-            else {
-                accountData['Game'][resBody.field<Il2Cpp.String>('uid').value.content as string] = {
-                    'secret': resBody.field<Il2Cpp.String>('secret').value.content,
-                    'seqnum': 0,
-                };
-            }
-            saveAccountData();
             this.method('_LoginServiceSuccess').invoke(resBody);
         }
     }
@@ -1468,13 +1527,14 @@ namespace Il2CppHook {
         Logger.log('[1;36m路径:[m [1;34m' + application.dataPath + '[m');
         Logger.log('[1;36mUnity版本:[m [1;34m' + Il2Cpp.unityVersion + '[m');
         Logger.log('[1;36mPid:[m [1;34m' + Process.id.toString() + '[m');
-        Logger.log('[1;36mAPK签名:[m [1;34m' + JavaUtil.getAppSignature() + '[m');
+        //Logger.log('[1;36mAPK签名:[m [1;34m' + JavaUtil.getAppSignature() + '[m');
         tryCallingHook(
             [initHook, initAccountData, NetworkHook, LogHook, MiscHook, LoginHook, TASHook],
             ['initHook', 'initAccountData', 'NetworkHook', 'LogHook', 'MiscHook', 'LoginHook', 'TASHook'],
             '[Il2CppHook]');
         Logger.logNormal('[Il2CppHook] Starting UIBaseHook()...');
         UIBaseHook();
+        //dumpFlatBufferHook();
     }
 }
 

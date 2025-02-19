@@ -943,7 +943,7 @@ namespace Il2CppHook {
             let scheduler = BattleControllerInstance!.method<Il2Cpp.Object>('get_scheduler').invoke();
             let previewCursor = factory?.method<Il2Cpp.Object>('CreatePreviewCursor').invoke(motionMode);
             let snapshot = scheduler?.method<Il2Cpp.ValueType>('TakeSnapshot').invoke();
-            previewCursor?.method('Spawn').invoke(route, snapshot, ptr(0));
+            previewCursor?.method('Spawn').invoke(route, snapshot, ptr(0), ptr(0));
         }
 
         export function CreateEnemyHud(UIController: Il2Cpp.Object) {

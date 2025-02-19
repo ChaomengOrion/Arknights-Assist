@@ -17,7 +17,7 @@ const SETTING = {
     'Il2CppHookDelay': 5000,
     'FindFontDelay': 10000,
     'GlobalFont': 'Novecentowide-Normal', //全局UI字体
-    'FPS120': false, //解锁120帧
+    'FPS120': true, //解锁120帧
     'KeyBinding': { //按键绑定
         'TAS': {
             'Normal': 'C',
